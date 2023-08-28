@@ -1,25 +1,37 @@
 from flask import Flask, request, jsonify
+from flask_restful import Resource, Api
+from sqlalchemy import create_engine
+from json import dumps
 
 app = Flask(__name__)
+api = Api(app)
 
-@app.route("/get-user/<user_id>") #default is GET
-def getUser(user_id):
-    userData = {
-        "user_id": user_id,
-        "name": "John Doe",
-        "email": "johndoe@email.com"
-    }
-    #get query parameter /get-user/2123?extra="hello"
-    extra = request.args.get("extra")
-    if extra:
-        userData['extra'] = extra
-    return jsonify(userData), 200
+db_connect = create_engine('sqlite:///chinook.db')
+conn = db_connect.connect()
 
-@app.route("/create-user", methods=["POST"])
-def create_user():
-    data = request.get_json() #get json payload from client
-    #database manipulation
-    return jsonify(data), 201
+class Employees(Resource):
+    def get(self):
+        query = conn.execute('select * from employees')
+        return {
+            'employess': [i[0] for i in query.cursor.fetchall()]
+        }
+
+class Tracks(Resource):
+    def get(self):
+        query = conn.execute("select trackid, name, composer, unitprice from tracks;")
+        result = {'data': [dict(zip(tuple (query.keys()) ,i)) for i in query.cursor]}
+        return jsonify(result)
+
+class Employees_Name(Resource):
+    def get(self, employee_id):
+        query = conn.execute("select * from employees where EmployeeId =%d "  %int(employee_id))
+        result = {'data': [dict(zip(tuple (query.keys()) ,i)) for i in query.cursor]}
+        return jsonify(result)
+        
+
+api.add_resource(Employees, '/employees') # Route_1
+api.add_resource(Tracks, '/tracks') # Route_2
+api.add_resource(Employees_Name, '/employees/<employee_id>') # Route_3
 
 
 if __name__ == '__main__':
